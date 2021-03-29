@@ -1,2 +1,2 @@
-# codiceAPA
-Codice personale dei laboratori, esercizi e appunti del corso di Algoritmi e Programmazione Avanzata del Politecnico di Torino
+# APAcodes
+Personal code of the laboratories, exercises and exam of the course of Algorithms and Advanced Programming (A.P.A. in italian) of the Politecnico di Torino
