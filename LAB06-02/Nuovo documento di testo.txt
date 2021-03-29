@@ -1,0 +1,278 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#define NR 50
+#define nFile "anag1.txt"
+
+
+typedef struct {
+    int giorno,mese,anno;
+} data_s;
+
+
+typedef struct {
+    char *via, *citta, *cap;
+} indirizzo_s;
+
+typedef struct {
+    char *codice;
+    char *nome;
+    char *cognome;
+    data_s data_di_nascita;
+    indirizzo_s indirizzo;
+} ITEM;
+
+typedef struct node_s *link;
+
+struct node_s {
+        ITEM val;
+        link next;
+};
+
+typedef struct {
+        link head;
+        int N;
+} database;
+
+typedef enum {false,true} boolean;
+
+void ItemFree(ITEM *itp);
+void printITEM(ITEM *p,FILE *fp);
+int KEYCompare(data_s d1, data_s d2);
+ITEM *SearchByDates(link *head,data_s d1, data_s d2);
+link newNode(ITEM val,link h);
+link SortListIns(link h, ITEM val);
+link SortListDEL(link h, char *k,ITEM *trovato);
+link SearchByKey(link h, char *k);
+void dbINIT(database *db);
+void dbFREE(database *db);
+boolean menu(database *db);
+
+void leggiDaFile(char *nomeFile, database *db);
+
+int main() {
+    database db;
+    dbINIT(&db);
+
+    while (menu(&db));
+
+    return 0;
+}
+
+
+int KEYCompare(data_s d2, data_s d1){
+
+    if (d1.anno != d2.anno)
+        return (d1.anno-d2.anno);
+    else if (d1.mese != d2.mese)
+        return (d1.mese-d2.mese);
+    else if (d1.giorno != d2.giorno)
+        return (d1.giorno-d2.giorno);
+    else return 0;
+}
+
+link newNode(ITEM val,link next){
+    link x=malloc(sizeof( *x));
+    if(x==NULL)
+        return NULL;
+    x->val=val;
+    x->next=next;
+    return x;
+}
+
+link SortListIns(link h, ITEM val){
+
+    link x, p;
+    if(h==NULL || KEYCompare(val.data_di_nascita,h->val.data_di_nascita)>0)
+        return newNode(val,h);
+
+    for(x=h->next, p=h; x!=NULL && KEYCompare(h->val.data_di_nascita,val.data_di_nascita)>0;p=x,x=x->next);
+    p->next=newNode(val,x);
+
+    return h;
+}
+
+void ItemFree(ITEM *itp) {
+    if (itp == NULL) return;
+
+    if (itp->codice!=NULL) free(itp->codice);
+    if (itp->cognome!=NULL) free(itp->cognome);
+    if (itp->nome!=NULL) free(itp->nome);
+    if (itp->indirizzo.via!=NULL) free(itp->indirizzo.via);
+    if (itp->indirizzo.citta!=NULL) free(itp->indirizzo.citta);
+    free (itp);
+}
+
+link SortListDEL(link h, char *k, ITEM *trovato){
+    link x,p;
+    if(h==NULL)
+        return NULL;
+    for(x=h,p=NULL; x!=NULL && strcmp(k,x->val.codice)>=0; p=x, x=x->next){
+        if(strcmp(x->val.codice,k)==0){
+            if(x==h)
+                h=x->next;
+            else
+                p->next=x->next;
+
+            *trovato=x->val;
+            ItemFree(&x->val);
+            free(x);
+            break;
+        }
+    }
+    return h;
+}
+
+link SearchByKey(link h, char *k){
+    link x;
+    for(x=h; x!=NULL && strcmp(k,x->val.codice)>=0;x=x->next)
+        if(strcmp(k,x->val.codice)==0)
+            return x;
+    return NULL;
+}
+
+void leggiDaFile(char *nomeFile, database *db){
+    ITEM nodo;
+    char codice[NR],nome[NR],cognome[NR],via[NR],citta[NR],cap[NR];
+
+    FILE *fp=fopen(nomeFile,"r");
+    if(fp==NULL){
+        printf("Errore apertura file!");
+        exit(-1);
+    }
+
+
+    while (fscanf(fp,"%s %s %s %d/%d/%d %s %s %s",codice,nome,cognome,&nodo.data_di_nascita.giorno,&nodo.data_di_nascita.mese,&nodo.data_di_nascita.anno,via,citta,cap)==9){
+        nodo.codice=strdup(codice);
+        nodo.nome=strdup(nome);
+        nodo.cognome=strdup(cognome);
+        nodo.indirizzo.via=strdup(via);
+        nodo.indirizzo.citta=strdup(citta);
+        nodo.indirizzo.cap=strdup(cap);
+        db->head=SortListIns(db->head,nodo);
+        db->N++;
+    }
+
+    fclose(fp);
+}
+
+void dbINIT(database *db){
+    db->N=0;
+    leggiDaFile(nFile,db);
+}
+
+void dbFREE(database *db){
+    link x, t;
+
+    for(x = db->head; x != NULL; x=t) {
+        t = x->next;
+        ItemFree(&t->val);
+        free(x);
+    }
+}
+
+void printITEM(ITEM *val,FILE *fp){
+    fprintf(fp,"<%s> <%s> <%s> <%d/%d/%d> <%s> <%s> <%s>",val->codice,val->nome,val->cognome,
+            val->data_di_nascita.giorno,val->data_di_nascita.mese,val->data_di_nascita.anno,
+            val->indirizzo.via,val->indirizzo.citta,val->indirizzo.cap);
+}
+
+
+ITEM *SearchByDates(link *head,data_s d1, data_s d2){
+    link x,p;
+    ITEM *tmp=NULL;
+    for(x=*head,p=NULL;x!=NULL && KEYCompare(d2,x->val.data_di_nascita)>=0; p=x, x=x->next){
+        if(KEYCompare(d1,x->val.data_di_nascita)<=0){
+            if(p==NULL){
+                *head=x->next;
+            } else{
+                p->next=x->next;
+            }
+            tmp=&x->val;
+            free(x);
+            break;
+        }
+    }
+    return tmp;
+}
+
+
+boolean menu(database *db){
+    int in;
+    printf("Inserisci: \n-\"0\" per inserire un nuovo elemento da tastiera\n-\"1\" per una nuova acquisizione da file\n-\"2\" per ricerca con codice\n-\"3\" per cancellazione (con estrazione) di un elemento con ricerca per codice \n-\"4\" per cancellazione di tutti gli elementi compresi fra due date \n-\"5\" per stampare la lista su file \n-\"6\" per terminare");
+    scanf("%d",&in);
+    switch(in){
+        case 0:{
+            ITEM nodo;
+            char codice[NR],nome[NR],cognome[NR],via[NR],citta[NR],cap[NR];
+            scanf("%s %s %s %d/%d/%d %s %s %s",codice,nome,cognome,&nodo.data_di_nascita.giorno,&nodo.data_di_nascita.mese,&nodo.data_di_nascita.anno,via,citta,cap);
+            nodo.codice=strdup(codice); nodo.nome=strdup(nome); nodo.cognome=strdup(cognome);
+            nodo.indirizzo.via=strdup(via); nodo.indirizzo.citta=strdup(citta); nodo.indirizzo.cap=strdup(cap);
+            db->head=SortListIns(db->head,nodo);
+        } return true;
+        case 1:{
+            char riga[NR];
+            printf("Inserisci nome file:\n>:");
+            scanf("%s",riga);
+            leggiDaFile(riga,db);
+        } return true;
+        case 2:{
+            char chiave[NR];
+            printf("Inserisci chiave di ricerca:\n>:");
+            scanf("%s",chiave);
+            link tmp;
+            tmp=SearchByKey(db->head,chiave);
+            if(tmp!=NULL){
+               printITEM(&tmp->val,stdout);
+            } else printf("Elemento non trovato!\n");
+        } return true;
+        case 3:{
+            ITEM tmp;
+            char chiave[NR];
+            printf("Inserisci chiave di ricerca:\n>:");
+            scanf("%s",chiave);
+            db->head=SortListDEL(db->head,chiave,&tmp);
+            printf("<%s> <%s> <%s> <%d/%d/%d> <%s> <%s> <%s>",tmp.codice,tmp.nome,tmp.cognome, tmp.data_di_nascita.giorno,tmp.data_di_nascita.mese,tmp.data_di_nascita.anno, tmp.indirizzo.via,tmp.indirizzo.citta,tmp.indirizzo.cap);
+        } return true;
+        case 4:{
+            boolean continua=true;
+            data_s d1,d2;
+            ITEM *tmp;
+            printf("Inserisci prima data nel formato gg/mm/aaaa (deve essere più piccola della seconda):\n>:");
+            scanf("%d/%d/%d",&d1.giorno,&d1.mese,&d1.anno);
+
+            printf("Inserisci seconda data nel formato gg/mm/aaaa (deve essere più grande della prima):\n>:");
+            scanf("%d/%d/%d",&d2.giorno,&d2.mese,&d2.anno);
+
+            do {
+                tmp=SearchByDates(&db->head,d1,d2);
+                if (tmp!=NULL){
+                    printf("<%s> <%s> <%s> <%d/%d/%d> <%s> <%s> <%s>",tmp->codice,tmp->nome,tmp->cognome, tmp->data_di_nascita.giorno,tmp->data_di_nascita.mese,tmp->data_di_nascita.anno, tmp->indirizzo.via,tmp->indirizzo.citta,tmp->indirizzo.cap);
+                    ItemFree(tmp);
+                } else {
+                    printf("Fine operazione di cancellazione\n");
+                    continua=false;
+                }
+            } while(continua);
+
+
+        } return true;
+        case 5:{
+            link tmp;
+            char riga[NR];
+            printf("Inserisci nome file:\n>:");
+            scanf("%s",riga);
+            FILE *fp=fopen(riga,"w");
+            for(tmp=db->head; tmp!=NULL ;tmp=tmp->next)
+                printITEM(&tmp->val,fp);
+            fclose(fp);
+        } return true;
+        case 6:
+            printf("\nFine programma");
+            dbFREE(db);
+            return false;
+        default:
+            printf("Errore inserimento scelta.\nRiprovare!");
+            return true;
+    }
+}
